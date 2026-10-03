@@ -38,9 +38,38 @@ Java 命令行把游戏拉起来。**它不破解、不绕过正版验证、不�
 `JAVA_HOME` 与 `PATH`，并优先选用**系统级** Java；只有在系统级完全不满足时才会
 退到随其他应用附带的 JDK，并给出明确警告。
 
+## 下载
+
+> **当前版本：0.9.0-beta.2（Beta 测试版）**，于 2026-10-03 开源发布。
+>
+> **Beta 阶段说明**：命令行内核已跑通「拉取清单 → 下载游戏 → 启动游戏」主线，
+> 功能基本齐全，但此前未验证过 1.12.2 / 1.16.5 等老版本的兼容分支，
+> 且目录结构、参数命名在 1.0.0 之前仍可能调整。
+> **建议先用于尝鲜，不要作为唯一启动器依赖。**
+
+### 源码
+
+```bat
+git clone https://github.com/ccmmdd114514/redstone-launcher.git
+cd redstone-launcher
+cargo build --release
+```
+
+### 预编译包
+
+全部预编译包发布在 [Releases 页面](https://github.com/ccmmdd114514/redstone-launcher/releases)
+的 Assets 区，文件名形如 `redstone-launcher-<版本号>.zip`。
+
+| 版本 | 类型 | 下载 | 大小 | 说明 |
+| --- | --- | --- | --- | --- |
+| 0.9.0-beta.2 | Beta 测试版 | [Releases](https://github.com/ccmmdd114514/redstone-launcher/releases) | — | 源码版，按上方方式自行构建 |
+| 0.9.0-beta.1 | Beta 测试版 | [Releases](https://github.com/ccmmdd114514/redstone-launcher/releases) | 3.2 MB | 首个 Beta 预编译包，Windows x86_64 |
+
+解压后双击 `redstone.bat` 即可运行；也可以运行 `add-to-path.bat` 把目录加入 PATH。
+
 ## 快速开始
 
-1. 从本仓库 Releases 下载 `redstone-launcher-<版本号>.zip` 并解压。
+1. 从上方 Releases 页面下载 `redstone-launcher-<版本号>.zip` 并解压。
 2. 可选：双击 `add-to-path.bat`，把目录加入用户 PATH（该脚本用 .NET API 写入，
    可避免 `setx` 截断长 PATH 的坑）。
 3. 运行自检，确认 Java 与目录状态正常：
