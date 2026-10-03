@@ -340,7 +340,7 @@ pub async fn download_many(http: &Http, items: Vec<Item>, policy: AbortPolicy) -
 
     if let Some(at) = aborted_at {
         return Err(anyhow!(
-            "下载在第 {}/{total} 个文件处中止：已失败 {} 个，超过阈值（失败率上限 {:.0}%，失败数上限 {}）。\n\
+            "下载在第 {}/{} 个文件处中止：已失败 {} 个，超过阈值（失败率上限 {:.0}%，失败数上限 {}）。\n\
              多半是镜像源不可用或网络被中断。等一会儿重试即可，已经下好的文件会被缓存跳过。",
             at,
             total,

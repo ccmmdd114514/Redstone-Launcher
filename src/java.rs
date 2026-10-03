@@ -189,7 +189,7 @@ pub fn discover() -> Vec<JavaInstall> {
     let mut seen = HashSet::new();
 
     for base in scan_dirs() {
-        push_vendor_dir(&base, &mut list, &mut seen);
+        push_vendor_dir(std::path::Path::new(&base), &mut list, &mut seen);
     }
 
     if let Ok(home) = std::env::var("JAVA_HOME") {
