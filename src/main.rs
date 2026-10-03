@@ -8,13 +8,13 @@ mod paths;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
+use std::io::{self, BufRead, Write};
 
 #[derive(Parser, Debug)]
 #[command(
     name = "redstone",
     about = "红石启动器 Redstone Launcher：Minecraft Java 版启动器（命令行版）",
     version,
-    arg_required_else_help = true
 )]
 struct Cli {
     #[command(subcommand)]
@@ -71,8 +71,18 @@ enum Command {
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+    // 双击启动（没有任何参数）→ 进入交互模式；带参数的外部命令行照旧。
+    if args.len() <= 1 {
+        return run_interactive().await;
+    }
     let cli = Cli::parse();
-    match cli.command {
+    run_command(cli.command).await
+}
+
+/// 所有子命令的派发逻辑。外部命令行与交互模式共用，子命令实现本身一行不动。
+async fn run_command(command: Command) -> Result<()> {
+    match command {
         Command::List { limit, kind } => {
             let http = net::Http::new(net::Mirror::Official)?;
             let manifest: meta::VersionManifest = http
@@ -224,10 +234,137 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// 交互模式：双击 redstone.exe（无参数）进入。黑窗口常驻，键盘敲命令循环执行。
+async fn run_interactive() -> Result<()> {
+    println!("红石启动器 Redstone Launcher {}", env!("CARGO_PKG_VERSION"));
+    println!("交互模式：直接输入命令，例如 `install 1.21.8`、`launch 1.21.8`、`doctor`。");
+    println!("输入 `exit` / `quit` / `q` 退出；输入 `help` 查看命令列表。");
+    println!("（传统命令行 `redstone <命令>` 依旧可用，详见 README —— 作为彩蛋保留到正式版。）");
+    println!();
+
+    let stdin = io::stdin();
+    let mut line = String::new();
+    loop {
+        print!("redstone> ");
+        io::stdout().flush().ok();
+        line.clear();
+        // 读到 EOF（Ctrl+Z / Ctrl+D）退出交互模式
+        if stdin.lock().read_line(&mut line)? == 0 {
+            println!();
+            break;
+        }
+        let input = line.trim();
+        if input.is_empty() {
+            continue;
+        }
+        let tokens = split_args(input);
+        match tokens.first().map(String::as_str) {
+            Some("exit") | Some("quit") | Some("q") => break,
+            Some("help") => {
+                println!("可用命令：");
+                println!("  list [--limit N] [--kind release|snapshot|all]   列出官方版本");
+                println!("  instances                                         查看已安装版本");
+                println!("  install <版本> [--mirror official|bmclapi]         下载并安装");
+                println!("  launch <版本> [--name 玩家] [--memory 4G] [--dry-run]  启动");
+                println!("  remove <版本> [--yes]                              删除实例");
+                println!("  logs [--lines N]                                   查看日志");
+                println!("  doctor                                            自检 Java / 目录 / 网络");
+                println!("  java                                              列出本机探测到的 Java");
+                println!("  exit / quit / q                                   退出交互模式");
+            }
+            _ => {
+                let argv = std::iter::once("redstone".to_string()).chain(tokens);
+                match Cli::try_parse_from(argv) {
+                    Ok(cli) => {
+                        if let Err(e) = run_command(cli.command).await {
+                            eprintln!("错误：{e:#}");
+                        }
+                    }
+                    // clap 报错自带用法说明，直接打印；不退出交互模式
+                    Err(e) => eprintln!("{e}"),
+                }
+            }
+        }
+    }
+    println!("再见。");
+    Ok(())
+}
+
+/// 引号感知的参数切分（零依赖）：支持双引号 / 单引号包裹含空格的参数。
+/// 例：`launch 1.21.8 --name "My Player"` → ["launch","1.21.8","--name","My Player"]
+fn split_args(line: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut quote: Option<char> = None;
+    for c in line.chars() {
+        match c {
+            '"' | '\'' if quote.is_none() => quote = Some(c),
+            q if Some(q) == quote => quote = None,
+            ' ' | '\t' if quote.is_none() => {
+                if !cur.is_empty() {
+                    out.push(std::mem::take(&mut cur));
+                }
+            }
+            _ => cur.push(c),
+        }
+    }
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+    out
+}
+
 fn flag(ok: bool) -> &'static str {
     if ok {
         "是"
     } else {
         "否"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn split_args_basic() {
+        assert_eq!(split_args("install 1.21.8"), vec!["install", "1.21.8"]);
+    }
+
+    #[test]
+    fn split_args_double_quote() {
+        assert_eq!(
+            split_args("launch 1.21.8 --name \"My Player\""),
+            vec!["launch", "1.21.8", "--name", "My Player"]
+        );
+    }
+
+    #[test]
+    fn split_args_single_quote_groups_spaces() {
+        assert_eq!(
+            split_args("launch 1.21.8 --name 'Cool Name'"),
+            vec!["launch", "1.21.8", "--name", "Cool Name"]
+        );
+    }
+
+    #[test]
+    fn split_args_double_quote_keeps_apostrophe() {
+        assert_eq!(
+            split_args("launch 1.21.8 --name \"Steve's World\""),
+            vec!["launch", "1.21.8", "--name", "Steve's World"]
+        );
+    }
+
+    #[test]
+    fn split_args_collapses_extra_spaces() {
+        assert_eq!(split_args("  doctor   "), vec!["doctor"]);
+    }
+
+    #[test]
+    fn split_args_leading_dash_flag() {
+        assert_eq!(
+            split_args("install 1.12.2 --mirror bmclapi"),
+            vec!["install", "1.12.2", "--mirror", "bmclapi"]
+        );
     }
 }

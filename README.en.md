@@ -4,7 +4,7 @@
   <img src="assets/icon.png" width="128" alt="Redstone Launcher icon" />
 </p>
 
-> **Version: 0.9.0-beta.3 (Beta)** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
+> **Version: 0.9.0-beta.4 (Beta)** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
 
 [English](README.en.md) | [简体中文](README.md)
 
@@ -51,13 +51,18 @@ instead of silently degrading.
 
 ## Download
 
-> **Current version: 0.9.0-beta.2 (Beta)**, open-sourced on 2026-10-03.
+> **Current version: 0.9.0-beta.4 (Beta)**.
 >
 > **About the Beta stage:** the command-line core has a working download-and-launch
 > path and the feature set is essentially complete, but compatibility with older
 > versions (1.12.2 / 1.16.5) has **not** been verified, and both the directory
 > layout and the command names may still change before 1.0.0.
 > **Use it to try things out — not as your only launcher.**
+>
+> **Interactive mode:** double-clicking `redstone.exe` with no arguments opens an
+> interactive shell — the console stays open and you type commands. The external
+> command line `redstone <command>` still works and is kept as the "classic /
+> easter-egg" mode all the way to 1.0.
 
 ### Source
 
@@ -75,6 +80,7 @@ Assets, named `redstone-launcher-<version>.zip`.
 
 | Version | Type | Download | Size | Notes |
 | --- | --- | --- | --- | --- |
+| 0.9.0-beta.4 | Beta | Build from source as shown above | — | Adds interactive mode (double-click the exe to open a REPL); prebuilt package pending CI |
 | 0.9.0-beta.3 | Beta | Build from source as shown above | — | The exe now carries the redstone-block icon, but no prebuilt package was produced for this build |
 | 0.9.0-beta.2 | Beta | [Release page](https://github.com/ccmmdd114514/Redstone-Launcher/releases/tag/v0.9.0-beta.2) | — | Source only: no prebuilt package for this build, build it yourself as shown above |
 | 0.9.0-beta.1 | Beta | [redstone-launcher-0.9.0-beta.1.zip](https://github.com/ccmmdd114514/Redstone-Launcher/releases/download/v0.9.0-beta.1/redstone-launcher-0.9.0-beta.1.zip) | 3.19 MB | First prebuilt Beta package, Windows x86_64 |
@@ -111,8 +117,28 @@ redstone install 1.21.8
 redstone launch 1.21.8 --name Player --memory 4G
 ```
 
-Running `redstone.bat` with no arguments prints the full help and then pauses, so
-the window will not flash and vanish.
+Double-clicking `redstone.exe` (or `redstone.bat`) with no arguments now enters
+interactive mode — the window stays open and waits for input instead of flashing away.
+
+## Interactive mode (double-click the exe)
+
+Double-clicking `redstone.exe` with **no arguments** opens an **interactive shell**:
+a console window stays open with a `redstone>` prompt, and you just type commands
+and press Enter — as many as you like:
+
+```text
+redstone> install 1.21.8
+redstone> launch 1.21.8 --name Steve --memory 4G
+redstone> doctor
+redstone> exit
+```
+
+- Type `exit` / `quit` / `q` to leave; `help` lists the commands.
+- Every command from the reference below works here (list / instances / install /
+  launch / remove / logs / doctor / java).
+- **The external command-line mode is fully preserved** — running `redstone <command>`
+  from any terminal keeps working exactly as before. We keep it as the "classic /
+  easter-egg" mode all the way to 1.0; both entry points behave identically.
 
 ## Command reference
 
@@ -215,7 +241,7 @@ python tools\publish-github-release.py 0.9.0-beta.3
 
 | File | Responsibility |
 | --- | --- |
-| `src/main.rs` | CLI entry point (list / instances / install / launch / remove / logs / doctor / java) |
+| `src/main.rs` | CLI entry point; enters interactive mode with no args (list / instances / install / launch / remove / logs / doctor / java) |
 | `src/paths.rs` | Path helpers, the single source of every filesystem location |
 | `src/meta.rs` | Official manifest structures and native-library classification |
 | `src/net.rs` | Ordered download engine: 16 concurrent, 3 retries, sha1 + size verification, atomic `.part` replacement |

@@ -14,11 +14,4 @@ if not exist "%RS_EXE%" (
 )
 
 "%RS_EXE%" %*
-set "RS_EXIT=%ERRORLEVEL%"
-
-if "%~1"=="" (
-  echo.
-  pause
-)
-
-exit /b %RS_EXIT%
+exit /b %ERRORLEVEL%

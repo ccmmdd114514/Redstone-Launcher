@@ -6,7 +6,7 @@
 
 **🌐 Looking for the English version? [Click here →](README.en.md)**
 
-> **版本：0.9.0-beta.3（Beta 测试版）** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
+> **版本：0.9.0-beta.4（Beta 测试版）** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
 
 一个用 Rust 从零自研的 **Minecraft Java 版启动器内核**。当前形态为命令行工具，
 已完整跑通「拉取清单 → 下载游戏 → 启动游戏」主线，可实际进入游戏。
@@ -46,12 +46,15 @@ Java 命令行把游戏拉起来。**它不破解、不绕过正版验证、不�
 
 ## 下载
 
-> **当前版本：0.9.0-beta.2（Beta 测试版）**，于 2026-10-03 开源发布。
+> **当前版本：0.9.0-beta.4（Beta 测试版）**。
 >
 > **Beta 阶段说明**：命令行内核已跑通「拉取清单 → 下载游戏 → 启动游戏」主线，
 > 功能基本齐全，但此前未验证过 1.12.2 / 1.16.5 等老版本的兼容分支，
 > 且目录结构、参数命名在 1.0.0 之前仍可能调整。
 > **建议先用于尝鲜，不要作为唯一启动器依赖。**
+>
+> **交互模式**：双击 `redstone.exe`（无参数）即进入交互界面，黑窗口常驻、键盘敲命令；
+> 外部命令行 `redstone <命令>` 依旧可用，作为「彩蛋」保留到正式版。
 
 ### 源码
 
@@ -68,6 +71,7 @@ cargo build --release
 
 | 版本 | 类型 | 下载 | 大小 | 说明 |
 | --- | --- | --- | --- | --- |
+| 0.9.0-beta.4 | Beta 测试版 | 按上方源码方式构建 | — | 新增交互模式（双击 exe 进 REPL）；预编译包待 CI 产出 |
 | 0.9.0-beta.3 | Beta 测试版 | 按上方源码方式构建 | — | exe 已带红石方块图标，但本次尚未产出预编译包 |
 | 0.9.0-beta.2 | Beta 测试版 | [Release 页面](https://github.com/ccmmdd114514/Redstone-Launcher/releases/tag/v0.9.0-beta.2) | — | 源码版：本次未提供预编译包，请按上方方式自行构建 |
 | 0.9.0-beta.1 | Beta 测试版 | [redstone-launcher-0.9.0-beta.1.zip](https://github.com/ccmmdd114514/Redstone-Launcher/releases/download/v0.9.0-beta.1/redstone-launcher-0.9.0-beta.1.zip) | 3.19 MB | 首个 Beta 预编译包，Windows x86_64 |
@@ -104,11 +108,29 @@ redstone install 1.21.8
 redstone launch 1.21.8 --name Player --memory 4G
 ```
 
-双击 `redstone.bat` 可直接运行，无参数时会暂停等待输入，避免窗口一闪而过。
+双击 `redstone.exe`（或 `redstone.bat`）不带参数会进入交互模式，黑窗口常驻等待输入，避免一闪而过。
+
+## 交互模式（双击 exe）
+
+双击 `redstone.exe`（不带任何参数）会进入**交互模式**：弹出的黑窗口常驻，提示符为
+`redstone>`，你直接用键盘敲命令即可，回车执行，可连续敲多条：
+
+```text
+redstone> install 1.21.8
+redstone> launch 1.21.8 --name 阿强 --memory 4G
+redstone> doctor
+redstone> exit
+```
+
+- 输入 `exit` / `quit` / `q` 退出；输入 `help` 查看命令列表。
+- 支持的命令与「命令速查」完全一致（list / instances / install / launch / remove / logs / doctor / java）。
+- **外部命令行模式原样保留**：在任意终端里 `redstone install 1.21.8` 这种写法一直可用，
+  我们把它作为「传统模式 / 彩蛋」保留到 1.0 正式版，两种入口行为一致。
 
 ## 命令速查
 
-无参数直接运行会打印完整帮助。
+在终端里运行 `redstone`（不带参数）同样进入交互模式；想看某个子命令的用法，加 `--help`，
+例如 `redstone install --help`。
 
 ```bat
 :: 列出最近 10 个正式版（--kind snapshot|all 可切换，--limit 调整条数）
@@ -213,7 +235,7 @@ Beta 版发布说明必须包含两块内容：
 
 | 文件 | 职责 |
 | --- | --- |
-| `src/main.rs` | 命令行入口（list / instances / install / launch / remove / logs / doctor / java） |
+| `src/main.rs` | 命令行入口；无参数时进入交互模式（list / instances / install / launch / remove / logs / doctor / java） |
 | `src/paths.rs` | 路径常量，全项目唯一的绝对路径来源 |
 | `src/meta.rs` | 官方元数据结构与原生库判定 |
 | `src/net.rs` | 有序源下载引擎：并发 16、重试 3 次、sha1 + size 校验、`.part` 原子替换 |
