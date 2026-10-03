@@ -1,5 +1,7 @@
 # 红石启动器 Redstone Launcher
 
+**🌐 Looking for the English version? [Click here →](README.en.md)**
+
 > **版本：0.9.0-beta.2（Beta 测试版）** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
 
 一个用 Rust 从零自研的 **Minecraft Java 版启动器内核**。当前形态为命令行工具，
