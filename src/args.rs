@@ -221,4 +221,127 @@ mod tests {
             &f
         ));
     }
+
+    fn os_rule(arch: &str) -> Rule {
+        Rule {
+            action: "allow".into(),
+            os: Some(crate::meta::OsRule {
+                name: None,
+                arch: Some(arch.into()),
+                version: None,
+            }),
+            features: None,
+        }
+    }
+
+    #[test]
+    fn expand_mixed_text() {
+        let c = ctx();
+        assert_eq!(expand("-Dfoo=${auth_uuid}-bar", &c).unwrap(), "-Dfoo=u-1-bar");
+    }
+
+    #[test]
+    fn expand_rejects_unclosed_placeholder() {
+        let c = ctx();
+        assert!(
+            expand("--x=${broken", &c).is_none(),
+            "占位符没闭合应判为无值，而不是原样塞给 java"
+        );
+    }
+
+    #[test]
+    fn dangling_flag_dropped_only_when_plain() {
+        let mut out: Vec<String> = vec!["--clientId".into()];
+        pop_dangling_flag(&mut out);
+        assert!(out.is_empty(), "值被丢掉的瞬间，前面的 --clientId 也得跟着走");
+
+        let mut with_eq: Vec<String> = vec!["--foo=bar".into()];
+        pop_dangling_flag(&mut with_eq);
+        assert_eq!(with_eq, vec!["--foo=bar"], "含 = 的不是悬空标志，不该动它");
+
+        let mut empty: Vec<String> = vec![];
+        pop_dangling_flag(&mut empty);
+        assert!(empty.is_empty(), "空列表不能 panic");
+    }
+
+    fn feature_rule(want: bool) -> Rule {
+        Rule {
+            action: "allow".into(),
+            os: None,
+            features: Some(HashMap::from([("is_demo_user".to_string(), want)])),
+        }
+    }
+
+    #[test]
+    fn features_rule() {
+        let off = HashMap::new();
+        assert!(
+            !rules_allow(&[feature_rule(true)], &off),
+            "特性没开就不该命中"
+        );
+
+        let mut on = HashMap::new();
+        on.insert("is_demo_user".to_string(), true);
+        assert!(
+            rules_allow(&[feature_rule(true)], &on),
+            "特性开了就该命中"
+        );
+    }
+
+    #[test]
+    fn arch_x86_is_not_this_machine() {
+        // version.json 里的 "x86" 指 32 位；本机是 x86_64，不该命中这条规则
+        let f = HashMap::new();
+        assert!(!rules_allow(&[os_rule("x86")], &f));
+        assert!(rules_allow(&[os_rule("x86_64")], &f));
+        assert!(rules_allow(&[os_rule("amd64")], &f));
+    }
+
+    #[test]
+    fn eval_drops_group_with_missing_var() {
+        // 一组参数里只要有一个变量无值，整组都得丢——留半截比全丢更糟，
+        // java 会因为参数错位直接报看不懂的错误。
+        let c = ctx();
+        let els = vec![ArgElement::Conditional {
+            rules: vec![],
+            value: ArgValue::Many(vec![
+                "--a".into(),
+                "--clientId".into(),
+                "${clientid}".into(),
+            ]),
+        }];
+        assert!(eval(&els, &c, &HashMap::new()).is_empty());
+    }
+
+    #[test]
+    fn eval_keeps_plain_args() {
+        let c = ctx();
+        let els = vec![
+            ArgElement::Plain("--username".into()),
+            ArgElement::Plain("${auth_player_name}".into()),
+            ArgElement::Plain("-Dfile.encoding=UTF-8".into()),
+        ];
+        assert_eq!(
+            eval(&els, &c, &HashMap::new()),
+            vec!["--username", "阿强", "-Dfile.encoding=UTF-8"]
+        );
+    }
+
+    #[test]
+    fn eval_respects_disallow_on_windows() {
+        let c = ctx();
+        let els = vec![ArgElement::Conditional {
+            rules: vec![Rule {
+                action: "disallow".into(),
+                os: Some(crate::meta::OsRule {
+                    name: Some("windows".into()),
+                    arch: None,
+                    version: None,
+                }),
+                features: None,
+            }],
+            value: ArgValue::One("--mac-only".into()),
+        }];
+        assert!(eval(&els, &c, &HashMap::new()).is_empty());
+    }
 }

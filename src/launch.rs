@@ -114,9 +114,88 @@ pub fn print_command(cmd: &[String]) {
     }
 }
 
+/// 锁文件路径：<共享区>\locks\<版本>.lock，内容是被拉起的 java 进程 PID。
+fn lock_path(version: &str) -> PathBuf {
+    paths::game_dir().join("locks").join(format!("{version}.lock"))
+}
+
+/// 解析 `tasklist /FO CSV /NH` 的输出，取出其中的 PID 列。
+///
+/// 输出形如：`"java.exe","1234","Console","1","100,000 K"`
+fn parse_tasklist_pids(csv: &str) -> Vec<u32> {
+    let mut pids = Vec::new();
+    for line in csv.lines() {
+        let cols: Vec<&str> = line.split(',').map(|s| s.trim_matches('"')).collect();
+        if cols.len() >= 2 {
+            if let Ok(pid) = cols[1].parse::<u32>() {
+                pids.push(pid);
+            }
+        }
+    }
+    pids
+}
+
+/// 当前存活的 java / javaw 进程 PID 列表。
+fn java_pids() -> Vec<u32> {
+    let mut pids = Vec::new();
+    for image in ["java.exe", "javaw.exe"] {
+        let Ok(out) = std::process::Command::new("tasklist")
+            .args([
+                "/FI",
+                &format!("IMAGENAME eq {image}"),
+                "/NH",
+                "/FO",
+                "CSV",
+            ])
+            .output()
+        else {
+            continue;
+        };
+        pids.extend(parse_tasklist_pids(&String::from_utf8_lossy(&out.stdout)));
+    }
+    pids
+}
+
+/// 该版本是否已经在运行；若是，Some(PID)。
+///
+/// 判据是「锁文件里记的 PID 是否还活着」，而不是「锁文件在不在」：
+/// 上次异常退出（断电、任务管理器强杀）会留下陈旧锁，只看文件存在的话，
+/// 那个版本就再也启动不了了。
+pub fn already_running(version: &str) -> Option<u32> {
+    let path = lock_path(version);
+    let text = std::fs::read_to_string(&path).ok()?;
+    let pid: u32 = text.trim().parse().ok()?;
+
+    if java_pids().contains(&pid) {
+        return Some(pid);
+    }
+    // 进程早没了，这是个陈旧锁，清掉让它恢复可启动
+    let _ = std::fs::remove_file(&path);
+    None
+}
+
+fn write_lock(version: &str, pid: u32) {
+    let path = lock_path(version);
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(&path, pid.to_string());
+}
+
+fn clear_lock(version: &str) {
+    let _ = std::fs::remove_file(lock_path(version));
+}
+
 pub fn launch(cmd: &[String], version: &str) -> Result<i32> {
     if cmd.is_empty() {
         return Err(anyhow!("命令行为空"));
+    }
+    if let Some(pid) = already_running(version) {
+        return Err(anyhow!(
+            "版本 {version} 已经在运行了（java 进程 {pid}）。\n\
+             重复启动会因为原生库目录被占用而失败，报错还长得像「文件被占用」，很难看出真相。\n\
+             先关掉已开的那个游戏窗口再启动；确实需要开两个实例时，等本次退出后再来。"
+        ));
     }
     std::fs::create_dir_all(paths::logs_dir())?;
     let stamp = std::time::SystemTime::now()
@@ -133,6 +212,9 @@ pub fn launch(cmd: &[String], version: &str) -> Result<i32> {
         .spawn()
         .with_context(|| format!("启动失败：{}", cmd[0]))?;
 
+    // 进程起来了就把 PID 记进锁文件，供下次启动前判重
+    write_lock(version, child.id());
+
     let out = child.stdout.take().context("无法捕获标准输出")?;
     let err = child.stderr.take().context("无法捕获错误输出")?;
     let log = std::sync::Arc::new(std::sync::Mutex::new(std::fs::File::create(&log_path)?));
@@ -143,6 +225,7 @@ pub fn launch(cmd: &[String], version: &str) -> Result<i32> {
     let _ = h_err.join();
 
     let status = child.wait()?;
+    clear_lock(version);
     if let Ok(mut f) = log.lock() {
         let _ = f.flush();
     }
@@ -272,9 +355,29 @@ pub fn load_version_json(version: &str) -> Result<VersionJson> {
     let p: PathBuf = paths::version_json(version);
     if !p.exists() {
         return Err(anyhow!(
-            "本地没有 {version} 的版本配置，请先执行：mcl install {version}"
+            "本地没有 {version} 的版本配置，请先执行：redstone install {version}"
         ));
     }
     let s = std::fs::read_to_string(&p)?;
     Ok(serde_json::from_str(&s).context("解析本地版本配置失败")?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_tasklist_csv_picks_pid_column() {
+        let csv = "\"java.exe\",\"1234\",\"Console\",\"1\",\"100,000 K\"\n\
+                   \"javaw.exe\",\"5678\",\"Console\",\"1\",\"99,000 K\"";
+        assert_eq!(parse_tasklist_pids(csv), vec![1234, 5678]);
+    }
+
+    #[test]
+    fn parse_tasklist_ignores_non_task_lines() {
+        // 目标进程刚好退出时，tasklist 只会回一行提示，没有逗号列
+        assert!(parse_tasklist_pids("信息: 没有运行的任务匹配指定标准。").is_empty());
+        assert!(parse_tasklist_pids("").is_empty());
+        assert!(parse_tasklist_pids("\"java.exe\"").is_empty(), "列数不足不该解析出 PID");
+    }
 }

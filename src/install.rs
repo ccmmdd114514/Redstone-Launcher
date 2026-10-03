@@ -118,12 +118,24 @@ pub fn client_item(http: &Http, vj: &VersionJson) -> Result<Item> {
 /// assets 的下载清单（索引 + 全部对象）。
 pub async fn asset_items(http: &Http, vj: &VersionJson) -> Result<Vec<Item>> {
     let index_path = paths::indexes_dir().join(format!("{}.json", vj.asset_index.id));
-    let index: AssetIndex = http
-        .json(&vj.asset_index.url, &vj.id)
-        .await
-        .context("拉取资源索引失败")?;
     std::fs::create_dir_all(paths::indexes_dir())?;
-    std::fs::write(&index_path, serde_json::to_vec(&index)?)?;
+
+    // 索引本身必须校验。Mojang 在 version.json 的 assetIndex 里给了 sha1 与 size，
+    // 以前这里走 http.json() 直连拉取，两者全丢：索引被截断、被镜像塞了私货，
+    // 都要一路错到几千个资源文件上才暴露。改走带校验的 download()。
+    let urls = http.candidates(&vj.asset_index.url, &vj.id);
+    http.download(
+        &urls,
+        &index_path,
+        Some(&vj.asset_index.sha1),
+        Some(vj.asset_index.size),
+    )
+    .await
+    .context("下载资源索引失败（sha1 或大小校验未通过）")?;
+
+    let raw = std::fs::read(&index_path).context("读取资源索引失败")?;
+    let index: AssetIndex =
+        serde_json::from_slice(&raw).context("解析资源索引失败：内容不是合法 JSON")?;
 
     let mut items = Vec::with_capacity(index.objects.len());
     for (name, obj) in &index.objects {
@@ -166,7 +178,7 @@ pub async fn install(version: &str, http: &Http) -> Result<()> {
     let mut items = vec![client_item(http, &vj)?];
     items.extend(library_items(http, &vj));
     let total = items.len();
-    let stats = net::download_many(http, items).await?;
+    let stats = net::download_many(http, items, net::AbortPolicy::default()).await?;
     println!(
         "      客户端+依赖库：新增 {} 个，跳过 {} 个，失败 {} 个（共 {total}）",
         stats.ok, stats.skipped, stats.failed
@@ -180,7 +192,7 @@ pub async fn install(version: &str, http: &Http) -> Result<()> {
     println!("[4/5] 下载资源文件 ...");
     let assets = asset_items(http, &vj).await?;
     let asset_total = assets.len();
-    let astats = net::download_many(http, assets).await?;
+    let astats = net::download_many(http, assets, net::AbortPolicy::default()).await?;
     println!(
         "      资源：新增 {} 个，跳过 {} 个，失败 {} 个（共 {asset_total}）",
         astats.ok, astats.skipped, astats.failed
