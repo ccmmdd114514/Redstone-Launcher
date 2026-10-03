@@ -1,8 +1,12 @@
 # 红石启动器 Redstone Launcher
 
+<p align="center">
+  <img src="assets/icon.png" width="128" alt="红石启动器图标" />
+</p>
+
 **🌐 Looking for the English version? [Click here →](README.en.md)**
 
-> **版本：0.9.0-beta.2（Beta 测试版）** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
+> **版本：0.9.0-beta.3（Beta 测试版）** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
 
 一个用 Rust 从零自研的 **Minecraft Java 版启动器内核**。当前形态为命令行工具，
 已完整跑通「拉取清单 → 下载游戏 → 启动游戏」主线，可实际进入游戏。
@@ -64,6 +68,7 @@ cargo build --release
 
 | 版本 | 类型 | 下载 | 大小 | 说明 |
 | --- | --- | --- | --- | --- |
+| 0.9.0-beta.3 | Beta 测试版 | 按上方源码方式构建 | — | exe 已带红石方块图标，但本次尚未产出预编译包 |
 | 0.9.0-beta.2 | Beta 测试版 | [Release 页面](https://github.com/ccmmdd114514/Redstone-Launcher/releases/tag/v0.9.0-beta.2) | — | 源码版：本次未提供预编译包，请按上方方式自行构建 |
 | 0.9.0-beta.1 | Beta 测试版 | [redstone-launcher-0.9.0-beta.1.zip](https://github.com/ccmmdd114514/Redstone-Launcher/releases/download/v0.9.0-beta.1/redstone-launcher-0.9.0-beta.1.zip) | 3.19 MB | 首个 Beta 预编译包，Windows x86_64 |
 

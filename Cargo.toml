@@ -1,6 +1,6 @@
 [package]
 name = "redstone-launcher"
-version = "0.9.0-beta.2"
+version = "0.9.0-beta.3"
 edition = "2021"
 description = "红石启动器 Redstone Launcher：Minecraft Java 版启动器内核"
 
@@ -20,6 +20,11 @@ hex = "0.4"
 uuid = { version = "1", features = ["v5"] }
 anyhow = "1"
 futures = "0.3"
+
+# 把 assets\icon.ico 编译进 exe 的资源段，让 redstone.exe 带上红石方块图标。
+# 图标源文件由 tools\make-icons.py 生成。
+[build-dependencies]
+winresource = "0.1"
 
 [profile.release]
 opt-level = 2

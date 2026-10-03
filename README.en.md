@@ -1,6 +1,10 @@
 # Redstone Launcher
 
-> **Version: 0.9.0-beta.2 (Beta)** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
+<p align="center">
+  <img src="assets/icon.png" width="128" alt="Redstone Launcher icon" />
+</p>
+
+> **Version: 0.9.0-beta.3 (Beta)** · [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) · [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-blue)](https://www.microsoft.com/windows) · Rust
 
 [English](README.en.md) | [简体中文](README.md)
 
@@ -71,6 +75,7 @@ Assets, named `redstone-launcher-<version>.zip`.
 
 | Version | Type | Download | Size | Notes |
 | --- | --- | --- | --- | --- |
+| 0.9.0-beta.3 | Beta | Build from source as shown above | — | The exe now carries the redstone-block icon, but no prebuilt package was produced for this build |
 | 0.9.0-beta.2 | Beta | [Release page](https://github.com/ccmmdd114514/Redstone-Launcher/releases/tag/v0.9.0-beta.2) | — | Source only: no prebuilt package for this build, build it yourself as shown above |
 | 0.9.0-beta.1 | Beta | [redstone-launcher-0.9.0-beta.1.zip](https://github.com/ccmmdd114514/Redstone-Launcher/releases/download/v0.9.0-beta.1/redstone-launcher-0.9.0-beta.1.zip) | 3.19 MB | First prebuilt Beta package, Windows x86_64 |
 
