@@ -62,8 +62,20 @@ cargo build --release
 
 | 版本 | 类型 | 下载 | 大小 | 说明 |
 | --- | --- | --- | --- | --- |
-| 0.9.0-beta.2 | Beta 测试版 | [Releases](https://github.com/ccmmdd114514/redstone-launcher/releases) | — | 源码版，按上方方式自行构建 |
-| 0.9.0-beta.1 | Beta 测试版 | [Releases](https://github.com/ccmmdd114514/redstone-launcher/releases) | 3.2 MB | 首个 Beta 预编译包，Windows x86_64 |
+| 0.9.0-beta.2 | Beta 测试版 | [Release 页面](https://github.com/ccmmdd114514/Redstone-Launcher/releases/tag/v0.9.0-beta.2) | — | 源码版：本次未提供预编译包，请按上方方式自行构建 |
+| 0.9.0-beta.1 | Beta 测试版 | [redstone-launcher-0.9.0-beta.1.zip](https://github.com/ccmmdd114514/Redstone-Launcher/releases/download/v0.9.0-beta.1/redstone-launcher-0.9.0-beta.1.zip) | 3.19 MB | 首个 Beta 预编译包，Windows x86_64 |
+
+下载后请先校验文件完整性，SHA-256 如下：
+
+```
+7424021a3cf89b60cedab6fa1d3fff8614c8fe75d53ea8cff51735e01eb3026a *redstone-launcher-0.9.0-beta.1.zip
+```
+
+PowerShell 校验方式：
+
+```powershell
+Get-FileHash .\redstone-launcher-0.9.0-beta.1.zip -Algorithm SHA256
+```
 
 解压后双击 `redstone.bat` 即可运行；也可以运行 `add-to-path.bat` 把目录加入 PATH。
 
