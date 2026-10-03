@@ -1,0 +1,37 @@
+MIT License
+
+Copyright (c) 2026 红石启动器 Redstone Launcher  contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## 为什么选 MIT
+
+本项目自写启动器内核，不基于任何 GPL 系项目（HMCL / Prism / PCL2 等仅作思路参考，
+未复制其代码），因此不受 GPL 传染性约束，可以自由选择许可证。
+
+选择 MIT 的原因：
+
+- MIT 许可最宽松，允许他人闭源二次分发与商用；
+- 与 Rust 生态主流许可证兼容，第三方依赖的 MIT / Apache-2.0 / dual 条款不会冲突；
+- 要求仅需保留版权声明，对使用者负担最小。
+
+若后续需要更强的专利授权保护，可替换为 Apache-2.0；若希望衍生作品必须同样开源，
+可在 GPL-3.0 之间迁移。三种许可证原文均可在 https://choosealicense.com/ 获取。

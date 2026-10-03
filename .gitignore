@@ -1,0 +1,24 @@
+# 构建产物
+/target
+/build
+
+# 下载缓存（体积大，不入库）
+/.cache
+
+# 发布产物（由 tools\release.py 生成后单独分发）
+/dist
+
+# 本机专用配置（target-dir 指向本机路径，不适合公开）
+/.cargo
+
+# 备份与临时文件
+Cargo.lock.bak
+*.part
+*.tmp
+*.zip
+
+# IDE / 系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
