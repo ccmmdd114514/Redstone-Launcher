@@ -1,0 +1,94 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # windows-latest 预装了 MinGW，配合 rustup 的 windows-gnu 目标即可直接编译。
+    # 这台 runner 干净、无杀软，正是本机编译被 dlltool 锁死时缺的环境。
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Rust（stable / windows-gnu）
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: 缓存 crates 与构建产物
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: 编译 release
+        run: cargo build --release
+
+      - name: 跑单元测试
+        run: cargo test --release
+
+      # 前面说过 build.rs 接入图标这件事「未经任何编译验证」，
+      # 这里把它变成一条会失败的断言：图标取不到、版本信息没写进去，CI 就红。
+      - name: 核对 exe 的图标与版本信息
+        shell: pwsh
+        run: |
+          $exe = "target\release\redstone.exe"
+          if (-not (Test-Path $exe)) { throw "没有产出 exe" }
+
+          Add-Type -AssemblyName System.Drawing
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Resolve-Path $exe))
+          if ($null -eq $icon) { throw "exe 上没有图标，图标接入失败" }
+
+          $info = (Get-Item $exe).VersionInfo
+          Write-Host "图标尺寸  : $($icon.Width) x $($icon.Height)"
+          Write-Host "产品名    : $($info.ProductName)"
+          Write-Host "文件描述  : $($info.FileDescription)"
+          Write-Host "文件版本  : $($info.FileVersion)"
+          Write-Host "版权      : $($info.LegalCopyright)"
+
+          if ($info.ProductName -ne "Redstone Launcher") {
+            throw "版本信息未写入 exe 资源段（build.rs 没生效？）"
+          }
+          if ($icon.Width -lt 16) {
+            throw "取到的图标尺寸异常：$($icon.Width)"
+          }
+
+      - name: 上传 exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: redstone-windows-x64
+          path: target/release/redstone.exe
+          if-no-files-found: error
+
+      - name: 打包 zip（结构对齐 tools\release.py 的产物）
+        shell: pwsh
+        run: |
+          $stage = "stage"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Copy-Item "target\release\redstone.exe" "$stage\redstone.exe"
+          Copy-Item "redstone.bat", "add-to-path.bat", "README.md", "CHANGELOG.md", "RELEASE.md" $stage
+
+          # 版本号唯一来源是 Cargo.toml，发布说明按版本号取
+          $version = (Select-String -Path "Cargo.toml" -Pattern '^version\s*=\s*"(.+?)"').Matches[0].Groups[1].Value
+          Write-Host "版本号（来自 Cargo.toml）：$version"
+          $notes = "release-notes\$version.md"
+          if (Test-Path $notes) {
+            Copy-Item $notes "$stage\RELEASE-NOTES.md"
+          } else {
+            Write-Host "警告：找不到 $notes，包内将不含 RELEASE-NOTES.md"
+          }
+
+          $zip = "redstone-launcher-$version.zip"
+          Compress-Archive -Path "$stage\*" -DestinationPath $zip -Force
+          Write-Host "已打包：$zip"
+
+      - name: 上传 zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: redstone-launcher-${{ github.sha }}
+          path: redstone-launcher-*.zip
+          if-no-files-found: error
