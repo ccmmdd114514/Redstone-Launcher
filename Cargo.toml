@@ -26,5 +26,13 @@ futures = "0.3"
 [build-dependencies]
 winresource = "0.1"
 
+# Windows 控制台 API：启用 ANSI 彩色输出、读取单个按键（数字键菜单用）。
+# 只在 Windows 上引入；本启动器目前只面向 Windows。
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+] }
+
 [profile.release]
 opt-level = 2

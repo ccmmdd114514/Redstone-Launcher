@@ -1191,6 +1191,7 @@ dependencies = [
  "sha1",
  "tokio",
  "uuid",
+ "windows-sys 0.61.2",
  "winresource",
  "zip",
 ]

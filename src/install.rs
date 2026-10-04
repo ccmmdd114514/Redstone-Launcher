@@ -168,7 +168,7 @@ pub async fn install(version: &str, http: &Http) -> Result<()> {
         serde_json::to_string_pretty(&vj)?,
     )?;
     println!(
-        "      mainClass={}  java={}",
+        "      启动主类：{}   所需 Java：{}",
         vj.main_class,
         vj.java_version
             .as_ref()
@@ -189,7 +189,7 @@ pub async fn install(version: &str, http: &Http) -> Result<()> {
     println!("[3/5] 解压原生库 ...");
     let (_, natives) = split_libraries(&vj);
     let count = extract_natives(&natives, &paths::natives_dir(version))?;
-    println!("      解压 {count} 个文件 -> {}", paths::natives_dir(version).display());
+    println!("      解压 {count} 个文件 → {}", paths::natives_dir(version).display());
 
     println!("[4/5] 下载资源文件 ...");
     let assets = asset_items(http, &vj).await?;

@@ -202,7 +202,7 @@ pub fn launch(cmd: &[String], version: &str) -> Result<i32> {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-    let log_path = paths::logs_dir().join(format!("mcl-{stamp}.log"));
+    let log_path = paths::logs_dir().join(format!("redstone-{stamp}.log"));
 
     let mut child = std::process::Command::new(&cmd[0])
         .args(&cmd[1..])
@@ -280,7 +280,6 @@ pub fn installed_versions() -> Vec<InstalledVersion> {
         list.push(InstalledVersion {
             jar: paths::version_jar(&id).exists(),
             natives: paths::natives_dir(&id).exists(),
-            instance: paths::instance_dir(&id).exists(),
             saves: count_saves(&id),
             id,
         });
@@ -293,7 +292,6 @@ pub struct InstalledVersion {
     pub id: String,
     pub jar: bool,
     pub natives: bool,
-    pub instance: bool,
     pub saves: usize,
 }
 
@@ -311,14 +309,14 @@ pub fn show_logs(lines: usize) -> Result<()> {
         .with_context(|| format!("无法读取日志目录：{}", dir.display()))?
         .flatten()
         .filter(|e| {
-            e.file_name()
-                .to_string_lossy()
-                .starts_with("mcl-")
+            // 兼容更早版本写下的 mcl-*.log，避免老用户升级后日志「凭空消失」
+            let name = e.file_name().to_string_lossy().to_string();
+            name.starts_with("redstone-") || name.starts_with("mcl-")
         })
         .map(|e| e.path())
         .collect();
     if files.is_empty() {
-        println!("还没有启动器日志（先运行一次 mcl launch）");
+        println!("还没有启动器日志（先运行一次 redstone launch）");
         return Ok(());
     }
     files.sort();
@@ -338,7 +336,7 @@ pub fn precheck(vj: &VersionJson, version: &str) -> Result<()> {
     let missing = crate::install::verify(vj, version);
     if !missing.is_empty() {
         return Err(anyhow!(
-            "缺少 {} 个文件，请先执行：mcl install {version}",
+            "缺少 {} 个文件，请先执行：redstone install {version}",
             missing.len()
         ));
     }
