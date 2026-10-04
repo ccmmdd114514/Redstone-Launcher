@@ -32,6 +32,10 @@
 - **全方位汉化**：帮助文本、菜单、提示、报错全部改为中文。
   关闭 clap 自动生成的英文帮助，改为手写中文帮助（`redstone help install`
   可查单个子命令）。英文原版说明仍保留在 `README.en.md`。
+- **Java 探测探针**（`tools\probe-java-scan.rs` + `tools\probe-java-scan.py`）：
+  把 `java.rs` 单独编译成小程序，用于在本机直接验证 Java 扫描与选版逻辑。
+  本机 `cargo build` / `cargo test` 卡在 dlltool，单元测试只能在 CI 跑；
+  这个探针让最核心的 Java 探测不再「只能等 CI 出结果」。
 
 ### 修复
 
@@ -49,6 +53,11 @@
   预览会指向 `C:/Windows`）；现加白名单校验，仅放行字母、数字与 `. _ - +`。
 - **classpath 截断修复（高危）**：`install.rs` 遇到 URL 为空的原生库时误用 `return`，
   会丢弃其后的全部依赖库与原生库，表现为「安装成功但启动即崩」；已改为 `continue`。
+- **附带级 Java 警告文案修正**：此前只要走到附带级分支，就无条件打印
+  「系统里没有独立的 Java」，并把来源写成固定的 `~\.workbuddy\binaries\java`。
+  在装有系统级 Java 8 / 21 的机器上这是错的（只是版本不够高），且与实际选中的
+  那套（如 LabyMod 自带）对不上，用户照着排查会白费功夫。
+  现按「有没有系统级 Java」分两种措辞，并只输出真正被选中的那一套。
 
 ### 变更
 

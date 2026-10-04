@@ -331,7 +331,7 @@ pub fn select(needed: i32) -> Result<JavaInstall> {
 
     let bundled = bundled_list(&list);
     if let Some(j) = bundled.iter().find(|j| j.major >= needed) {
-        warn_bundled(&bundled);
+        warn_bundled(j, !system_list(&list).is_empty(), needed);
         return Ok((*j).clone());
     }
 
@@ -343,14 +343,21 @@ pub fn select(needed: i32) -> Result<JavaInstall> {
     ))
 }
 
-/// 只剩下附带级 Java 时给出明确警告，避免用户以为一切正常。
-fn warn_bundled(bundled: &[&JavaInstall]) {
+/// 只能用附带级 Java 时给出明确警告，避免用户以为一切正常。
+///
+/// 注意措辞要分两种情况：系统级 Java 一套都没有，和「有但版本不够」，
+/// 两者的下一步动作不一样，不能混成一句「没有独立的 Java」——那在有 Java 8/21
+/// 的机器上是错的，用户照着找问题会白费功夫。
+fn warn_bundled(chosen: &JavaInstall, has_system: bool, needed: i32) {
     println!();
-    println!("警告：系统里没有独立的 Java，当前只能用附带的那套（{}）", paths::bundled_java_root().display());
-    for j in bundled {
-        println!("        Java {}  {}", j.major, j.path.display());
+    if has_system {
+        println!("警告：系统级 Java 里没有满足要求的（需要 Java {needed}），改用附带级的那套：");
+    } else {
+        println!("警告：本机没有独立的 Java，只能用附带级的那套：");
     }
-    println!("        这套由其他应用提供，卸载那个应用后启动器会立刻失效。");
+    println!("        Java {}  {}", chosen.major, chosen.path.display());
+    println!("        附带级 Java 是别的应用带来的（第三方启动器 / 开发工具自带的运行时），");
+    println!("        卸载那个应用后启动器会立刻失效。");
     println!("        建议安装 Eclipse Temurin 到 C:\\Program Files\\Eclipse Adoptium。");
     println!();
 }
