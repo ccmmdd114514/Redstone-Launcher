@@ -1,6 +1,6 @@
 [package]
 name = "redstone-launcher"
-version = "0.9.0-beta.4"
+version = "0.9.0-beta.5"
 edition = "2021"
 description = "红石启动器 Redstone Launcher：Minecraft Java 版启动器内核"
 

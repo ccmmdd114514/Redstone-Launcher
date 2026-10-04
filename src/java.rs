@@ -57,7 +57,33 @@ const VENDOR_DIRS: &[&str] = &[
 ];
 
 /// 出现在这些片段里的路径，一律算作「随其他应用附带」。
-const BUNDLED_MARKERS: &[&str] = &[".workbuddy", "\\workbuddy\\"];
+const BUNDLED_MARKERS: &[&str] = &[
+    ".workbuddy",
+    "\\workbuddy\\",
+    "\\labymod\\",
+    "\\.hmcl\\",
+    "\\pcl\\",
+    "\\bakaxl\\",
+    "\\prismlauncher\\",
+    "\\multimc\\",
+];
+
+/// 第三方 Minecraft 启动器/工具自带的 Java 运行时，位于 `%APPDATA%` 之下。
+///
+/// 这几套 Java 随宿主应用安装，卸载宿主即失效，一律按附带级处理。
+/// 之所以单独列出：新版 Minecraft（26.x 起）要求 Java 25，而玩家机器上
+/// 最常见的 Java 25 来源恰恰是这些启动器自带的 runtime，漏扫就直接不可用。
+///
+/// 注意：**不扫描 `%APPDATA%\.minecraft`**，该目录是玩家的真实游戏数据，
+/// 项目硬约束禁止触碰。
+const APP_RUNTIME_SUBDIRS: &[&str] = &[
+    r"LabyMod\runtime",
+    r".hmcl\runtime",
+    r"PCL\runtime",
+    r"BakaXL\runtime",
+    r"PrismLauncher\runtime",
+    r"MultiMC\runtime",
+];
 
 fn classify(exe: &Path) -> JavaSource {
     let lower = exe.to_string_lossy().to_lowercase();
@@ -90,8 +116,10 @@ fn probe_version_string(exe: &Path) -> String {
 
 fn probe_major(exe: &Path) -> Option<i32> {
     let ver = probe_version_string(exe);
+    // 去掉 "-ea" / "-beta" 之类的后缀："25-ea" → "25"
+    let core = ver.split('-').next().unwrap_or(&ver);
     // "1.8.0_504" → 8；"21.0.12.1" → 21
-    let parts: Vec<&str> = ver.split('.').collect();
+    let parts: Vec<&str> = core.split('.').collect();
     if parts.first() == Some(&"1") {
         parts.get(1).and_then(|p| p.parse().ok())
     } else {
@@ -100,7 +128,13 @@ fn probe_major(exe: &Path) -> Option<i32> {
 }
 
 /// 把一个候选路径收进列表，自动去重并判定来源。
-fn push(list: &mut Vec<JavaInstall>, seen: &mut HashSet<String>, exe: PathBuf) {
+/// `forced` 用于强制指定来源（第三方启动器运行时一律按附带级处理）。
+fn push(
+    list: &mut Vec<JavaInstall>,
+    seen: &mut HashSet<String>,
+    exe: PathBuf,
+    forced: Option<JavaSource>,
+) {
     let key = exe.to_string_lossy().to_lowercase();
     if !exe.is_file() || !seen.insert(key) {
         return;
@@ -108,7 +142,7 @@ fn push(list: &mut Vec<JavaInstall>, seen: &mut HashSet<String>, exe: PathBuf) {
     if let Some(major) = probe_major(&exe) {
         let version = probe_version_string(&exe);
         list.push(JavaInstall {
-            source: classify(&exe),
+            source: forced.unwrap_or_else(|| classify(&exe)),
             path: exe,
             major,
             version,
@@ -117,12 +151,12 @@ fn push(list: &mut Vec<JavaInstall>, seen: &mut HashSet<String>, exe: PathBuf) {
 }
 
 
-/// 需要扫描的发行版根目录：系统级 Program Files + 用户级 `%LOCALAPPDATA%\Programs`。
+/// 系统级安装目录：Program Files 下各发行版、用户级免提权安装位置、工具下载的 JDK。
 ///
 /// 用户级目录是免提权的安装位置（很多软件默认装这里），必须一起扫，
 /// 否则装在用户目录里的 JDK 会被漏掉。
-fn scan_dirs() -> Vec<String> {
-    let mut dirs: Vec<String> = VENDOR_DIRS.iter().map(|s| s.to_string()).collect();
+fn system_dirs() -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = VENDOR_DIRS.iter().map(PathBuf::from).collect();
     if let Ok(local) = std::env::var("LOCALAPPDATA") {
         for name in [
             "Java",
@@ -132,20 +166,53 @@ fn scan_dirs() -> Vec<String> {
             "BellSoft",
             "OpenJDK",
         ] {
-            dirs.push(
-                PathBuf::from(&local)
-                    .join("Programs")
-                    .join(name)
-                    .to_string_lossy()
-                    .to_string(),
-            );
+            dirs.push(PathBuf::from(&local).join("Programs").join(name));
+        }
+    }
+    if let Ok(profile) = std::env::var("USERPROFILE") {
+        // IntelliJ 等 IDE 下载的 JDK
+        dirs.push(PathBuf::from(&profile).join(".jdks"));
+        // scoop 安装的 JDK
+        dirs.push(PathBuf::from(&profile).join("scoop").join("apps"));
+    }
+    dirs
+}
+
+/// 第三方启动器自带的运行时根目录（位于 `%APPDATA%`，按附带级处理）。
+fn app_runtime_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Ok(roaming) = std::env::var("APPDATA") {
+        for sub in APP_RUNTIME_SUBDIRS {
+            dirs.push(PathBuf::from(&roaming).join(sub));
+        }
+    }
+    dirs
+}
+
+/// 用户自定义的额外扫描目录：环境变量 `REDSTONE_JAVA_DIRS`，多个用分号分隔。
+///
+/// 用于覆盖扫描白名单之外的安装位置（自定义盘符、绿色版 JDK、其他启动器的
+/// 运行时目录等）。
+fn custom_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Ok(extra) = std::env::var("REDSTONE_JAVA_DIRS") {
+        for p in extra.split(';') {
+            let p = p.trim();
+            if !p.is_empty() {
+                dirs.push(PathBuf::from(p));
+            }
         }
     }
     dirs
 }
 
 /// 扫描某个发行版根目录，它的每个子目录里可能有 `bin\java.exe`。
-fn push_vendor_dir(base: &std::path::Path, list: &mut Vec<JavaInstall>, seen: &mut HashSet<String>) {
+fn push_vendor_dir(
+    base: &std::path::Path,
+    list: &mut Vec<JavaInstall>,
+    seen: &mut HashSet<String>,
+    forced: Option<JavaSource>,
+) {
     let Ok(entries) = std::fs::read_dir(base) else {
         return;
     };
@@ -157,11 +224,11 @@ fn push_vendor_dir(base: &std::path::Path, list: &mut Vec<JavaInstall>, seen: &m
         // 常见两种布局：<root>\jdk-21\bin\java.exe 与 <root>\jdk-21\...\bin\java.exe
         let direct = dir.join("bin").join("java.exe");
         if direct.is_file() {
-            push(list, seen, direct);
+            push(list, seen, direct, forced);
             continue;
         }
         if let Some(found) = find_java_one_level(&dir) {
-            push(list, seen, found);
+            push(list, seen, found, forced);
         }
     }
 }
@@ -188,22 +255,44 @@ pub fn discover() -> Vec<JavaInstall> {
     let mut list = Vec::new();
     let mut seen = HashSet::new();
 
-    for base in scan_dirs() {
-        push_vendor_dir(std::path::Path::new(&base), &mut list, &mut seen);
+    // 1. 系统级安装位置：Program Files 各发行版、用户级安装目录、IDE / scoop 下载的 JDK
+    for base in system_dirs() {
+        push_vendor_dir(&base, &mut list, &mut seen, None);
     }
 
+    // 2. JAVA_HOME 与 PATH
     if let Ok(home) = std::env::var("JAVA_HOME") {
-        push(&mut list, &mut seen, PathBuf::from(home).join("bin").join("java.exe"));
+        push(
+            &mut list,
+            &mut seen,
+            PathBuf::from(home).join("bin").join("java.exe"),
+            None,
+        );
     }
-
     if let Ok(path_var) = std::env::var("PATH") {
         for dir in std::env::split_paths(&path_var) {
-            push(&mut list, &mut seen, dir.join("java.exe"));
+            push(&mut list, &mut seen, dir.join("java.exe"), None);
         }
     }
 
-    // 兜底：随其他应用附带的 Java，卸载该应用即失效
-    push_vendor_dir(&paths::bundled_java_root(), &mut list, &mut seen);
+    // 3. 第三方启动器自带的运行时（附带级）。新版 Minecraft（26.x）要求 Java 25，
+    //    而玩家机器上最常见的 Java 25 来源正是这类 runtime。
+    for base in app_runtime_dirs() {
+        push_vendor_dir(&base, &mut list, &mut seen, Some(JavaSource::Bundled));
+    }
+
+    // 4. 用户通过 REDSTONE_JAVA_DIRS 指定的额外目录
+    for base in custom_dirs() {
+        push_vendor_dir(&base, &mut list, &mut seen, None);
+    }
+
+    // 5. 兜底：随本工具附带的 Java，卸载宿主后即失效
+    push_vendor_dir(
+        &paths::bundled_java_root(),
+        &mut list,
+        &mut seen,
+        Some(JavaSource::Bundled),
+    );
 
     list.sort_by_key(|j| j.major);
     list

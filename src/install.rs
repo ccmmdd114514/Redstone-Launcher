@@ -42,7 +42,9 @@ pub fn split_libraries(vj: &VersionJson) -> (Vec<PathBuf>, Vec<PathBuf>) {
         if lib.is_native() {
             if let Some(art) = lib.native_artifact() {
                 if art.url.is_empty() {
-                    return (classpath, natives);
+                    // 该原生库没有下载地址，跳过它本身，不能中断整个循环——
+                    // 否则它之后的库与原生库全部丢失，装出来能过校验却起不来。
+                    continue;
                 }
                 natives.push(paths::libraries_dir().join(lib.relative_path(art)));
             }

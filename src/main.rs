@@ -6,9 +6,31 @@ mod meta;
 mod net;
 mod paths;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 use std::io::{self, BufRead, Write};
+
+/// 校验版本标识是否安全。
+///
+/// 版本号会直接参与目录拼接（实例目录、版本目录、日志与锁文件）。未校验时，
+/// 绝对路径（`C:\Windows`）会让 `join` 整体替换原路径，`..` 则可穿越到实例区
+/// 之外——`remove --yes` 会因此递归删除任意已存在的目录。这里只放行
+/// 字母、数字与 `. _ - +`，并显式拒绝 `.` 与 `..`。
+fn ensure_safe_version(version: &str) -> Result<()> {
+    let ok = !version.is_empty()
+        && version.len() <= 64
+        && version != "."
+        && version != ".."
+        && version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '+'));
+    if !ok {
+        return Err(anyhow!(
+            "版本名不合法：{version}（只允许字母、数字与 . _ - +，且不能为 . 或 ..）"
+        ));
+    }
+    Ok(())
+}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -119,6 +141,7 @@ async fn run_command(command: Command) -> Result<()> {
             }
         }
         Command::Remove { version, yes } => {
+            ensure_safe_version(&version)?;
             let target = paths::instance_dir(&version);
             if !target.exists() {
                 println!("实例不存在：{}", target.display());
@@ -196,6 +219,7 @@ async fn run_command(command: Command) -> Result<()> {
             }
         }
         Command::Install { version, mirror } => {
+            ensure_safe_version(&version)?;
             let http = net::Http::new(net::Mirror::parse(&mirror)?)?;
             install::install(&version, &http).await?;
         }
@@ -205,6 +229,7 @@ async fn run_command(command: Command) -> Result<()> {
             memory,
             dry_run,
         } => {
+            ensure_safe_version(&version)?;
             let vj = launch::load_version_json(&version)?;
             launch::precheck(&vj, &version)?;
             let needed = vj
